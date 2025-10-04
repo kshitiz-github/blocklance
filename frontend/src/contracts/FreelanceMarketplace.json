@@ -1,0 +1,661 @@
+{
+  "address": "0x885DEb0Bd24F89E64A264f15E04FA06a92346000",
+  "abi": [
+    {
+      "type": "event",
+      "anonymous": false,
+      "name": "JobCreated",
+      "inputs": [
+        {
+          "type": "uint256",
+          "name": "jobId",
+          "indexed": true
+        },
+        {
+          "type": "address",
+          "name": "client",
+          "indexed": true
+        },
+        {
+          "type": "string",
+          "name": "title",
+          "indexed": false
+        },
+        {
+          "type": "uint256",
+          "name": "budget",
+          "indexed": false
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "anonymous": false,
+      "name": "MilestoneApproved",
+      "inputs": [
+        {
+          "type": "uint256",
+          "name": "milestoneId",
+          "indexed": true
+        },
+        {
+          "type": "uint256",
+          "name": "jobId",
+          "indexed": true
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "anonymous": false,
+      "name": "MilestoneCompleted",
+      "inputs": [
+        {
+          "type": "uint256",
+          "name": "milestoneId",
+          "indexed": true
+        },
+        {
+          "type": "uint256",
+          "name": "jobId",
+          "indexed": true
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "anonymous": false,
+      "name": "MilestoneCreated",
+      "inputs": [
+        {
+          "type": "uint256",
+          "name": "milestoneId",
+          "indexed": true
+        },
+        {
+          "type": "uint256",
+          "name": "jobId",
+          "indexed": true
+        },
+        {
+          "type": "uint256",
+          "name": "amount",
+          "indexed": false
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "anonymous": false,
+      "name": "PaymentReleased",
+      "inputs": [
+        {
+          "type": "uint256",
+          "name": "milestoneId",
+          "indexed": true
+        },
+        {
+          "type": "address",
+          "name": "freelancer",
+          "indexed": true
+        },
+        {
+          "type": "uint256",
+          "name": "amount",
+          "indexed": false
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "anonymous": false,
+      "name": "ProposalAccepted",
+      "inputs": [
+        {
+          "type": "uint256",
+          "name": "jobId",
+          "indexed": true
+        },
+        {
+          "type": "address",
+          "name": "freelancer",
+          "indexed": true
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "anonymous": false,
+      "name": "ProposalSubmitted",
+      "inputs": [
+        {
+          "type": "uint256",
+          "name": "jobId",
+          "indexed": true
+        },
+        {
+          "type": "address",
+          "name": "freelancer",
+          "indexed": true
+        },
+        {
+          "type": "uint256",
+          "name": "proposalId",
+          "indexed": false
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "anonymous": false,
+      "name": "ReputationUpdated",
+      "inputs": [
+        {
+          "type": "address",
+          "name": "user",
+          "indexed": true
+        },
+        {
+          "type": "uint256",
+          "name": "newScore",
+          "indexed": false
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "acceptProposal",
+      "constant": false,
+      "payable": false,
+      "inputs": [
+        {
+          "type": "uint256",
+          "name": "_jobId"
+        },
+        {
+          "type": "uint256",
+          "name": "_proposalIndex"
+        }
+      ],
+      "outputs": []
+    },
+    {
+      "type": "function",
+      "name": "approveMilestone",
+      "constant": false,
+      "payable": false,
+      "inputs": [
+        {
+          "type": "uint256",
+          "name": "_jobId"
+        },
+        {
+          "type": "uint256",
+          "name": "_milestoneIndex"
+        }
+      ],
+      "outputs": []
+    },
+    {
+      "type": "function",
+      "name": "cancelJob",
+      "constant": false,
+      "payable": false,
+      "inputs": [
+        {
+          "type": "uint256",
+          "name": "_jobId"
+        }
+      ],
+      "outputs": []
+    },
+    {
+      "type": "function",
+      "name": "clientJobs",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [
+        {
+          "type": "address",
+          "name": ""
+        },
+        {
+          "type": "uint256",
+          "name": ""
+        }
+      ],
+      "outputs": [
+        {
+          "type": "uint256",
+          "name": ""
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "createJob",
+      "constant": false,
+      "stateMutability": "payable",
+      "payable": true,
+      "inputs": [
+        {
+          "type": "string",
+          "name": "_title"
+        },
+        {
+          "type": "string",
+          "name": "_description"
+        },
+        {
+          "type": "uint256[]",
+          "name": "_milestoneAmounts"
+        },
+        {
+          "type": "string[]",
+          "name": "_milestoneDescriptions"
+        }
+      ],
+      "outputs": []
+    },
+    {
+      "type": "function",
+      "name": "freelancerJobs",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [
+        {
+          "type": "address",
+          "name": ""
+        },
+        {
+          "type": "uint256",
+          "name": ""
+        }
+      ],
+      "outputs": [
+        {
+          "type": "uint256",
+          "name": ""
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "getClientJobs",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [
+        {
+          "type": "address",
+          "name": "_client"
+        }
+      ],
+      "outputs": [
+        {
+          "type": "uint256[]",
+          "name": ""
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "getFreelancerJobs",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [
+        {
+          "type": "address",
+          "name": "_freelancer"
+        }
+      ],
+      "outputs": [
+        {
+          "type": "uint256[]",
+          "name": ""
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "getJobMilestones",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [
+        {
+          "type": "uint256",
+          "name": "_jobId"
+        }
+      ],
+      "outputs": [
+        {
+          "type": "tuple[]",
+          "name": "",
+          "components": [
+            {
+              "type": "uint256",
+              "name": "id"
+            },
+            {
+              "type": "uint256",
+              "name": "jobId"
+            },
+            {
+              "type": "string",
+              "name": "description"
+            },
+            {
+              "type": "uint256",
+              "name": "amount"
+            },
+            {
+              "type": "bool",
+              "name": "isCompleted"
+            },
+            {
+              "type": "bool",
+              "name": "isPaid"
+            },
+            {
+              "type": "bool",
+              "name": "clientApproved"
+            },
+            {
+              "type": "string",
+              "name": "deliverableHash"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "getJobProposals",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [
+        {
+          "type": "uint256",
+          "name": "_jobId"
+        }
+      ],
+      "outputs": [
+        {
+          "type": "tuple[]",
+          "name": "",
+          "components": [
+            {
+              "type": "uint256",
+              "name": "jobId"
+            },
+            {
+              "type": "address",
+              "name": "freelancer"
+            },
+            {
+              "type": "string",
+              "name": "coverLetter"
+            },
+            {
+              "type": "uint256",
+              "name": "proposedAmount"
+            },
+            {
+              "type": "bool",
+              "name": "isAccepted"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "jobCounter",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [],
+      "outputs": [
+        {
+          "type": "uint256",
+          "name": ""
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "jobMilestones",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [
+        {
+          "type": "uint256",
+          "name": ""
+        },
+        {
+          "type": "uint256",
+          "name": ""
+        }
+      ],
+      "outputs": [
+        {
+          "type": "uint256",
+          "name": "id"
+        },
+        {
+          "type": "uint256",
+          "name": "jobId"
+        },
+        {
+          "type": "string",
+          "name": "description"
+        },
+        {
+          "type": "uint256",
+          "name": "amount"
+        },
+        {
+          "type": "bool",
+          "name": "isCompleted"
+        },
+        {
+          "type": "bool",
+          "name": "isPaid"
+        },
+        {
+          "type": "bool",
+          "name": "clientApproved"
+        },
+        {
+          "type": "string",
+          "name": "deliverableHash"
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "jobProposals",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [
+        {
+          "type": "uint256",
+          "name": ""
+        },
+        {
+          "type": "uint256",
+          "name": ""
+        }
+      ],
+      "outputs": [
+        {
+          "type": "uint256",
+          "name": "jobId"
+        },
+        {
+          "type": "address",
+          "name": "freelancer"
+        },
+        {
+          "type": "string",
+          "name": "coverLetter"
+        },
+        {
+          "type": "uint256",
+          "name": "proposedAmount"
+        },
+        {
+          "type": "bool",
+          "name": "isAccepted"
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "jobs",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [
+        {
+          "type": "uint256",
+          "name": ""
+        }
+      ],
+      "outputs": [
+        {
+          "type": "uint256",
+          "name": "id"
+        },
+        {
+          "type": "address",
+          "name": "client"
+        },
+        {
+          "type": "string",
+          "name": "title"
+        },
+        {
+          "type": "string",
+          "name": "description"
+        },
+        {
+          "type": "uint256",
+          "name": "totalBudget"
+        },
+        {
+          "type": "uint256",
+          "name": "milestonesCount"
+        },
+        {
+          "type": "bool",
+          "name": "isActive"
+        },
+        {
+          "type": "address",
+          "name": "freelancer"
+        },
+        {
+          "type": "uint256",
+          "name": "createdAt"
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "milestoneCounter",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [],
+      "outputs": [
+        {
+          "type": "uint256",
+          "name": ""
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "proposalCounter",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [],
+      "outputs": [
+        {
+          "type": "uint256",
+          "name": ""
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "submitMilestone",
+      "constant": false,
+      "payable": false,
+      "inputs": [
+        {
+          "type": "uint256",
+          "name": "_jobId"
+        },
+        {
+          "type": "uint256",
+          "name": "_milestoneIndex"
+        },
+        {
+          "type": "string",
+          "name": "_deliverableHash"
+        }
+      ],
+      "outputs": []
+    },
+    {
+      "type": "function",
+      "name": "submitProposal",
+      "constant": false,
+      "payable": false,
+      "inputs": [
+        {
+          "type": "uint256",
+          "name": "_jobId"
+        },
+        {
+          "type": "string",
+          "name": "_coverLetter"
+        },
+        {
+          "type": "uint256",
+          "name": "_proposedAmount"
+        }
+      ],
+      "outputs": []
+    },
+    {
+      "type": "function",
+      "name": "userReputation",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [
+        {
+          "type": "address",
+          "name": ""
+        }
+      ],
+      "outputs": [
+        {
+          "type": "uint256",
+          "name": ""
+        }
+      ]
+    }
+  ]
+}
