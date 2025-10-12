@@ -624,7 +624,8 @@ body {
 .my-jobs-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 2rem;
+  justify-items: center;
+  gap: 60rem;
 }
 
 .jobs-list {
