@@ -44,7 +44,6 @@ body {
   to { transform: rotate(360deg); }
 }
 
-
 .header {
   background: rgba(30, 27, 75, 0.5);
   backdrop-filter: blur(16px);
@@ -55,9 +54,9 @@ body {
 }
 
 .header-content {
-  max-width: 1280px;
-  margin: 0px;
-  padding: 1rem 1.5rem;
+  max-width: calc(100% - 60px);
+  margin: 0 30px;
+  padding: 1rem 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -117,7 +116,6 @@ body {
   color: #d1d5db;
 }
 
-/* Buttons */
 .btn-primary {
   padding: 0.5rem 1.5rem;
   background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
@@ -217,20 +215,16 @@ body {
   font-size: 1rem;
 }
 
-/* Navigation Tabs */
 .nav-tabs {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 1.5rem;
+  max-width: calc(100% - 60px);
+  margin: 1.5rem 30px 0 30px;
+  padding: 0.5rem;
   display: flex;
   gap: 0.5rem;
   background: rgba(30, 27, 75, 0.5);
   backdrop-filter: blur(16px);
   border-radius: 12px;
   border: 1px solid rgba(168, 85, 247, 0.2);
-  margin-top: 1.5rem;
-  margin-left: 1.5rem;
-  margin-right: 1.5rem;
 }
 
 .tab {
@@ -264,14 +258,12 @@ body {
   font-size: 1.25rem;
 }
 
-/* Main Content */
 .main-content {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 1.5rem;
+  max-width: calc(100% - 60px);
+  margin: 0 30px;
+  padding: 2rem 0;
 }
 
-/* Section Headers */
 .section-header {
   display: flex;
   justify-content: space-between;
@@ -289,13 +281,11 @@ body {
   color: #9ca3af;
 }
 
-/* Jobs Grid */
 .jobs-grid {
   display: grid;
   gap: 1.5rem;
 }
 
-/* Job Card */
 .job-card {
   background: rgba(30, 27, 75, 0.5);
   backdrop-filter: blur(16px);
@@ -357,7 +347,6 @@ body {
   font-size: 1rem;
 }
 
-/* Proposal Form */
 .proposal-form {
   margin-top: 1rem;
   padding: 1rem;
@@ -412,7 +401,6 @@ body {
   border-color: #a855f7;
 }
 
-/* Proposals Section */
 .proposals-section {
   margin-top: 1rem;
   padding: 1rem;
@@ -450,7 +438,6 @@ body {
   margin-bottom: 1rem;
 }
 
-/* Milestones Section */
 .milestones-section {
   margin-top: 1rem;
 }
@@ -513,7 +500,6 @@ body {
   font-weight: 600;
 }
 
-/* Create Job Section */
 .create-job-section {
   max-width: 800px;
   margin: 0 auto;
@@ -574,7 +560,6 @@ body {
   margin-bottom: 0.75rem;
 }
 
-/* Milestones Form */
 .milestones-form {
   display: flex;
   flex-direction: column;
@@ -608,7 +593,6 @@ body {
   margin-bottom: 0;
 }
 
-/* Form Footer */
 .form-footer {
   padding-top: 1.5rem;
   border-top: 1px solid rgba(100, 116, 139, 0.3);
@@ -631,7 +615,6 @@ body {
   color: white;
 }
 
-/* My Jobs Section */
 .my-jobs-section h2 {
   font-size: 1.5rem;
   font-weight: 700;
@@ -716,7 +699,6 @@ body {
   color: #d1d5db;
 }
 
-/* Responsive Design */
 @media (max-width: 1024px) {
   .my-jobs-grid {
     grid-template-columns: 1fr;
@@ -756,7 +738,6 @@ body {
   }
 }
 
-/* Input Number - Remove Arrows */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
