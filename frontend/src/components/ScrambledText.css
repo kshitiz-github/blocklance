@@ -1,0 +1,14 @@
+.text-block {
+  font-family: 'SF Mono', Monaco, monospace;
+  font-size: inherit;
+  color: inherit;
+}
+
+.text-block p {
+  margin: 0;
+}
+
+.char {
+  will-change: transform;
+  display: inline-block;
+}
