@@ -9,6 +9,361 @@ import contractData from './contracts/FreelanceMarketplace.json';
 const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS || contractData.address;
 const CONTRACT_ABI = contractData.abi;
 
+// Milestone Submit Dialog Component
+const MilestoneSubmitDialog = ({ isOpen, onClose, onSubmit, milestoneIndex }) => {
+  const [previewLink, setPreviewLink] = useState('');
+  const [file, setFile] = useState(null);
+  const [ipfsHash, setIpfsHash] = useState('');
+  const [uploading, setUploading] = useState(false);
+
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (selectedFile) {
+      if (selectedFile.type === 'application/zip' || 
+          selectedFile.type === 'application/x-zip-compressed' ||
+          selectedFile.name.endsWith('.zip')) {
+        setFile(selectedFile);
+      } else {
+        alert('Please upload a ZIP file only');
+        e.target.value = '';
+      }
+    }
+  };
+
+  const uploadToIPFS = async () => {
+    if (!file) {
+      alert('Please select a file first');
+      return;
+    }
+
+    try {
+      setUploading(true);
+      
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Using Pinata API - Replace with your API keys
+      const response = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
+        method: 'POST',
+        headers: {
+          'pinata_api_key': '55654dc7fbc5c3faa2d6',
+          'pinata_secret_api_key': 'ef306d60e30929aa28f1189d9cb62e6b9a8037361d9c5598586e013c32a61e83',
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+
+      const data = await response.json();
+      const hash = `ipfs://${data.IpfsHash}`;
+      setIpfsHash(hash);
+      
+      alert('File uploaded to IPFS successfully! ✅');
+    } catch (error) {
+      console.error('IPFS upload error:', error);
+      alert('Failed to upload to IPFS. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSubmit = () => {
+    if (!ipfsHash.trim()) {
+      alert('Please upload your work to IPFS first');
+      return;
+    }
+    
+    onSubmit(ipfsHash, previewLink);
+    setPreviewLink('');
+    setFile(null);
+    setIpfsHash('');
+  };
+
+  const handleClose = () => {
+    setPreviewLink('');
+    setFile(null);
+    setIpfsHash('');
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000,
+      padding: '1rem'
+    }}>
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))',
+        backdropFilter: 'blur(10px)',
+        borderRadius: '12px',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+        maxWidth: '500px',
+        width: '100%',
+        maxHeight: '90vh',
+        overflowY: 'auto',
+        border: '1px solid rgba(255, 255, 255, 0.1)'
+      }}>
+        {/* Header */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '1.5rem',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+        }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#fff', margin: 0 }}>
+            Submit Milestone {milestoneIndex + 1}
+          </h2>
+          <button
+            onClick={handleClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#999',
+              fontSize: '1.5rem',
+              cursor: 'pointer',
+              padding: '0.25rem'
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Form Content */}
+        <div style={{ padding: '1.5rem' }}>
+          {/* File Upload Section */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label style={{
+              display: 'block',
+              fontSize: '0.875rem',
+              fontWeight: '500',
+              color: '#fff',
+              marginBottom: '0.5rem'
+            }}>
+              📦 Upload Work (ZIP file) *
+            </label>
+            
+            <div style={{
+              border: '2px dashed rgba(255, 255, 255, 0.3)',
+              borderRadius: '8px',
+              padding: '2rem',
+              textAlign: 'center',
+              cursor: 'pointer',
+              transition: 'border-color 0.3s'
+            }}>
+              <input
+                type="file"
+                accept=".zip,application/zip,application/x-zip-compressed"
+                onChange={handleFileChange}
+                style={{ display: 'none' }}
+                id="file-upload"
+              />
+              <label htmlFor="file-upload" style={{ cursor: 'pointer' }}>
+                <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>📄</div>
+                <div style={{ fontSize: '0.875rem', color: '#ccc', marginBottom: '0.25rem' }}>
+                  {file ? file.name : 'Click to select ZIP file'}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#999' }}>
+                  Maximum file size: 100MB
+                </div>
+              </label>
+            </div>
+
+            {file && !ipfsHash && (
+              <button
+                onClick={uploadToIPFS}
+                disabled={uploading}
+                style={{
+                  width: '100%',
+                  marginTop: '1rem',
+                  padding: '0.75rem',
+                  background: uploading ? '#666' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  cursor: uploading ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                {uploading ? (
+                  <>
+                    <div style={{
+                      width: '16px',
+                      height: '16px',
+                      border: '2px solid #fff',
+                      borderTopColor: 'transparent',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }}></div>
+                    Uploading to IPFS...
+                  </>
+                ) : (
+                  <>
+                    📤 Upload to IPFS
+                  </>
+                )}
+              </button>
+            )}
+
+            {ipfsHash && (
+              <div style={{
+                marginTop: '1rem',
+                padding: '1rem',
+                background: 'rgba(34, 197, 94, 0.1)',
+                border: '1px solid rgba(34, 197, 94, 0.3)',
+                borderRadius: '8px'
+              }}>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: '1.25rem' }}>✅</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{
+                      fontSize: '0.875rem',
+                      fontWeight: '500',
+                      color: '#22c55e',
+                      marginBottom: '0.25rem'
+                    }}>
+                      Upload Successful!
+                    </p>
+                    <p style={{
+                      fontSize: '0.75rem',
+                      color: '#86efac',
+                      wordBreak: 'break-all',
+                      margin: 0
+                    }}>
+                      {ipfsHash}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Preview Link Input */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label style={{
+              display: 'block',
+              fontSize: '0.875rem',
+              fontWeight: '500',
+              color: '#fff',
+              marginBottom: '0.5rem'
+            }}>
+              🔗 Preview Link (Optional)
+            </label>
+            <input
+              type="url"
+              value={previewLink}
+              onChange={(e) => setPreviewLink(e.target.value)}
+              placeholder="https://your-preview-link.com"
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '8px',
+                color: '#fff',
+                fontSize: '0.875rem',
+                outline: 'none'
+              }}
+            />
+            <p style={{
+              marginTop: '0.25rem',
+              fontSize: '0.75rem',
+              color: '#999'
+            }}>
+              Add a live preview link if available (deployed site, demo, etc.)
+            </p>
+          </div>
+
+          {/* Info Box */}
+          <div style={{
+            padding: '1rem',
+            background: 'rgba(59, 130, 246, 0.1)',
+            border: '1px solid rgba(59, 130, 246, 0.3)',
+            borderRadius: '8px',
+            marginBottom: '1.5rem'
+          }}>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <span style={{ fontSize: '1.25rem' }}>📤</span>
+              <div style={{ fontSize: '0.875rem', color: '#93c5fd' }}>
+                <p style={{ fontWeight: '500', marginBottom: '0.5rem' }}>
+                  Submission Guidelines:
+                </p>
+                <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.75rem' }}>
+                  <li>Compress all deliverables into a single ZIP file</li>
+                  <li>Files are stored permanently on IPFS</li>
+                  <li>Include README with setup instructions</li>
+                  <li>Optionally provide a live preview link</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <button
+              onClick={handleClose}
+              style={{
+                flex: 1,
+                padding: '0.75rem',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '8px',
+                color: '#fff',
+                fontSize: '0.875rem',
+                fontWeight: '500',
+                cursor: 'pointer'
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={!ipfsHash.trim()}
+              style={{
+                flex: 1,
+                padding: '0.75rem',
+                background: ipfsHash.trim() 
+                  ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                  : 'rgba(255, 255, 255, 0.1)',
+                border: 'none',
+                borderRadius: '8px',
+                color: '#fff',
+                fontSize: '0.875rem',
+                fontWeight: '500',
+                cursor: ipfsHash.trim() ? 'pointer' : 'not-allowed'
+              }}
+            >
+              Submit Work
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <style>
+        {`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}
+      </style>
+    </div>
+  );
+};
+
 function App() {
   const [account, setAccount] = useState(null);
   const [contract, setContract] = useState(null);
@@ -25,6 +380,11 @@ function App() {
     jobsCompleted: 0,
     successRate: 0
   });
+  
+  // Dialog states
+  const [isSubmitDialogOpen, setIsSubmitDialogOpen] = useState(false);
+  const [selectedJob, setSelectedJob] = useState(null);
+  const [selectedMilestone, setSelectedMilestone] = useState(null);
   
   // Form states
   const [jobForm, setJobForm] = useState({
@@ -77,34 +437,28 @@ function App() {
       
       setLoading(true);
       
-      // Request account access
       const provider = new ethers.BrowserProvider(window.ethereum);
       const accounts = await provider.send("eth_requestAccounts", []);
       const signer = await provider.getSigner();
       
-      // Verify we're on Sepolia
       const network = await provider.getNetwork();
       if (network.chainId !== 11155111n) {
         alert('Please switch to Sepolia testnet in MetaMask!');
         return;
       }
       
-      // Create contract instance
       const contractInstance = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
       
       setAccount(accounts[0]);
       setProvider(provider);
       setContract(contractInstance);
       
-      // Get balance
       const bal = await provider.getBalance(accounts[0]);
       setBalance(ethers.formatEther(bal));
       
-      // Get reputation
       const rep = await contractInstance.userReputation(accounts[0]);
       setReputation(rep.toString());
       
-      // Load jobs and stats
       await loadJobs(contractInstance, accounts[0]);
       await loadStats(contractInstance, accounts[0]);
       
@@ -178,7 +532,6 @@ function App() {
       
       setJobs(jobsList);
       
-      // Load user's jobs
       if (userAddress) {
         const clientJobs = await contractInstance.getClientJobs(userAddress);
         const freelancerJobs = await contractInstance.getFreelancerJobs(userAddress);
@@ -226,10 +579,8 @@ function App() {
       
       await tx.wait();
       
-      // Success animation
       showSuccessNotification('Job created successfully! 🎉');
       
-      // Reset form
       setJobForm({
         title: '',
         description: '',
@@ -297,15 +648,26 @@ function App() {
     }
   };
 
-  // Submit milestone
+  // Submit milestone - Updated to open dialog
   const submitMilestone = async (jobId, milestoneIndex) => {
+    setSelectedJob(jobId);
+    setSelectedMilestone(milestoneIndex);
+    setIsSubmitDialogOpen(true);
+  };
+
+  // Handle milestone submission from dialog
+  const handleMilestoneSubmit = async (ipfsHash, previewLink) => {
     try {
-      const deliverableHash = prompt('Enter deliverable description or IPFS hash:');
-      if (!deliverableHash) return;
-      
       setLoading(true);
-      const tx = await contract.submitMilestone(jobId, milestoneIndex, deliverableHash);
+      setIsSubmitDialogOpen(false);
+      
+      const tx = await contract.submitMilestone(
+        selectedJob,
+        selectedMilestone,
+        ipfsHash
+      );
       await tx.wait();
+      
       showSuccessNotification('Milestone submitted! ✅');
       await loadJobs(contract, account);
     } catch (error) {
@@ -397,7 +759,6 @@ function App() {
                   <span className="stat-label">Reputation</span>
                   <span className="stat-value">⭐ {reputation}</span>
                 </div>
-
               </>
             ) : (
               <button className="connect-btn" onClick={connectWallet}>
@@ -789,6 +1150,14 @@ function App() {
           )}
         </main>
       </div>
+
+      {/* Milestone Submit Dialog */}
+      <MilestoneSubmitDialog
+        isOpen={isSubmitDialogOpen}
+        onClose={() => setIsSubmitDialogOpen(false)}
+        onSubmit={handleMilestoneSubmit}
+        milestoneIndex={selectedMilestone || 0}
+      />
 
       {/* Floating Action Button */}
       <div className="fab" onClick={() => setActiveTab('create')}>
