@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+// frontend/src/App.jsx
+import React, { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
 import './App.css';
 
-// Import contract ABI (will be generated after deployment)
+// Import contract ABI (adjust path as needed)
 import contractData from './contracts/FreelanceMarketplace.json';
 
 const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS || contractData.address;
@@ -13,16 +14,23 @@ function App() {
   const [contract, setContract] = useState(null);
   const [provider, setProvider] = useState(null);
   const [balance, setBalance] = useState('0');
-  const [activeTab, setActiveTab] = useState('jobs');
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [jobs, setJobs] = useState([]);
-  const [myJobs, setMyJobs] = useState([]);
+  const [myJobs, setMyJobs] = useState({ client: [], freelancer: [] });
   const [loading, setLoading] = useState(false);
   const [reputation, setReputation] = useState(0);
+  const [stats, setStats] = useState({
+    activeJobs: 0,
+    totalEarned: '0',
+    jobsCompleted: 0,
+    successRate: 0
+  });
   
   // Form states
   const [jobForm, setJobForm] = useState({
     title: '',
     description: '',
+    category: 'Smart Contract Development',
     milestones: [{ description: '', amount: '' }]
   });
   
@@ -32,41 +40,114 @@ function App() {
     amount: ''
   });
 
+  // Initialize particles on mount
+  useEffect(() => {
+    createParticles();
+    // Auto-connect if possible
+    if (window.ethereum) {
+      connectWallet();
+    }
+  }, []);
+
+  // Create floating particles
+  const createParticles = () => {
+    const particlesContainer = document.getElementById('particles');
+    if (!particlesContainer) return;
+    
+    for (let i = 0; i < 15; i++) {
+      const particle = document.createElement('div');
+      particle.className = 'particle';
+      particle.style.width = Math.random() * 4 + 2 + 'px';
+      particle.style.height = particle.style.width;
+      particle.style.left = Math.random() * 100 + '%';
+      particle.style.top = Math.random() * 100 + '%';
+      particle.style.animationDelay = Math.random() * 20 + 's';
+      particle.style.animationDuration = (Math.random() * 10 + 15) + 's';
+      particlesContainer.appendChild(particle);
+    }
+  };
+
   // Connect wallet
   const connectWallet = async () => {
     try {
       if (!window.ethereum) {
-        alert('Please install MetaMask!');
+        alert('Please install MetaMask to use this platform!');
         return;
       }
       
+      setLoading(true);
+      
+      // Request account access
       const provider = new ethers.BrowserProvider(window.ethereum);
       const accounts = await provider.send("eth_requestAccounts", []);
       const signer = await provider.getSigner();
       
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+      // Verify we're on Sepolia
+      const network = await provider.getNetwork();
+      if (network.chainId !== 11155111n) {
+        alert('Please switch to Sepolia testnet in MetaMask!');
+        return;
+      }
+      
+      // Create contract instance
+      const contractInstance = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
       
       setAccount(accounts[0]);
       setProvider(provider);
-      setContract(contract);
+      setContract(contractInstance);
       
       // Get balance
-      const balance = await provider.getBalance(accounts[0]);
-      setBalance(ethers.formatEther(balance));
+      const bal = await provider.getBalance(accounts[0]);
+      setBalance(ethers.formatEther(bal));
       
       // Get reputation
-      const rep = await contract.userReputation(accounts[0]);
+      const rep = await contractInstance.userReputation(accounts[0]);
       setReputation(rep.toString());
       
-      await loadJobs(contract);
+      // Load jobs and stats
+      await loadJobs(contractInstance, accounts[0]);
+      await loadStats(contractInstance, accounts[0]);
+      
     } catch (error) {
       console.error('Connection error:', error);
-      alert('Failed to connect wallet');
+      alert('Failed to connect: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load stats
+  const loadStats = async (contractInstance, userAddress) => {
+    try {
+      const clientJobs = await contractInstance.getClientJobs(userAddress);
+      const freelancerJobs = await contractInstance.getFreelancerJobs(userAddress);
+      
+      let totalEarned = 0n;
+      let completed = 0;
+      
+      for (const jobId of freelancerJobs) {
+        const milestones = await contractInstance.getJobMilestones(jobId);
+        for (const milestone of milestones) {
+          if (milestone.isPaid) {
+            totalEarned += milestone.amount;
+            completed++;
+          }
+        }
+      }
+      
+      setStats({
+        activeJobs: clientJobs.length + freelancerJobs.length,
+        totalEarned: ethers.formatEther(totalEarned),
+        jobsCompleted: completed,
+        successRate: freelancerJobs.length > 0 ? Math.round((completed / freelancerJobs.length) * 100) : 0
+      });
+    } catch (error) {
+      console.error('Error loading stats:', error);
     }
   };
 
   // Load all jobs
-  const loadJobs = async (contractInstance) => {
+  const loadJobs = async (contractInstance, userAddress = null) => {
     try {
       setLoading(true);
       const jobCounter = await contractInstance.jobCounter();
@@ -76,6 +157,8 @@ function App() {
         const job = await contractInstance.jobs(i);
         const milestones = await contractInstance.getJobMilestones(i);
         const proposals = await contractInstance.getJobProposals(i);
+        
+        const completedMilestones = milestones.filter(m => m.isPaid).length;
         
         jobsList.push({
           id: i,
@@ -87,17 +170,22 @@ function App() {
           freelancer: job.freelancer,
           milestonesCount: job.milestonesCount.toString(),
           milestones: milestones,
-          proposals: proposals
+          proposals: proposals,
+          completedMilestones: completedMilestones,
+          progress: (completedMilestones / milestones.length) * 100
         });
       }
       
       setJobs(jobsList);
       
       // Load user's jobs
-      if (account) {
-        const clientJobs = await contractInstance.getClientJobs(account);
-        const freelancerJobs = await contractInstance.getFreelancerJobs(account);
-        setMyJobs({ client: clientJobs, freelancer: freelancerJobs });
+      if (userAddress) {
+        const clientJobs = await contractInstance.getClientJobs(userAddress);
+        const freelancerJobs = await contractInstance.getFreelancerJobs(userAddress);
+        setMyJobs({ 
+          client: clientJobs.map(id => id.toString()), 
+          freelancer: freelancerJobs.map(id => id.toString()) 
+        });
       }
     } catch (error) {
       console.error('Error loading jobs:', error);
@@ -114,12 +202,17 @@ function App() {
         return;
       }
       
+      if (!jobForm.title || !jobForm.description) {
+        alert('Please fill in all required fields');
+        return;
+      }
+      
       setLoading(true);
       
       const milestoneAmounts = jobForm.milestones.map(m => 
         ethers.parseEther(m.amount || '0')
       );
-      const milestoneDescriptions = jobForm.milestones.map(m => m.description);
+      const milestoneDescriptions = jobForm.milestones.map(m => m.description || '');
       
       const totalAmount = milestoneAmounts.reduce((a, b) => a + b, 0n);
       
@@ -132,16 +225,21 @@ function App() {
       );
       
       await tx.wait();
-      alert('Job created successfully!');
+      
+      // Success animation
+      showSuccessNotification('Job created successfully! 🎉');
       
       // Reset form
       setJobForm({
         title: '',
         description: '',
+        category: 'Smart Contract Development',
         milestones: [{ description: '', amount: '' }]
       });
       
-      await loadJobs(contract);
+      await loadJobs(contract, account);
+      await loadStats(contract, account);
+      
     } catch (error) {
       console.error('Error creating job:', error);
       alert('Failed to create job: ' + error.message);
@@ -151,26 +249,30 @@ function App() {
   };
 
   // Submit proposal
-  const submitProposal = async () => {
+  const submitProposal = async (jobId) => {
     try {
       if (!contract) {
         alert('Please connect wallet first');
         return;
       }
       
+      const coverLetter = prompt('Enter your cover letter:');
+      const amount = prompt('Enter your proposed amount (ETH):');
+      
+      if (!coverLetter || !amount) return;
+      
       setLoading(true);
       
       const tx = await contract.submitProposal(
-        proposalForm.jobId,
-        proposalForm.coverLetter,
-        ethers.parseEther(proposalForm.amount || '0')
+        jobId,
+        coverLetter,
+        ethers.parseEther(amount)
       );
       
       await tx.wait();
-      alert('Proposal submitted successfully!');
+      showSuccessNotification('Proposal submitted! 🚀');
+      await loadJobs(contract, account);
       
-      setProposalForm({ jobId: '', coverLetter: '', amount: '' });
-      await loadJobs(contract);
     } catch (error) {
       console.error('Error submitting proposal:', error);
       alert('Failed to submit proposal');
@@ -185,8 +287,8 @@ function App() {
       setLoading(true);
       const tx = await contract.acceptProposal(jobId, proposalIndex);
       await tx.wait();
-      alert('Proposal accepted!');
-      await loadJobs(contract);
+      showSuccessNotification('Proposal accepted! 🤝');
+      await loadJobs(contract, account);
     } catch (error) {
       console.error('Error accepting proposal:', error);
       alert('Failed to accept proposal');
@@ -198,14 +300,14 @@ function App() {
   // Submit milestone
   const submitMilestone = async (jobId, milestoneIndex) => {
     try {
-      const deliverableHash = prompt('Enter IPFS hash of deliverable:');
+      const deliverableHash = prompt('Enter deliverable description or IPFS hash:');
       if (!deliverableHash) return;
       
       setLoading(true);
       const tx = await contract.submitMilestone(jobId, milestoneIndex, deliverableHash);
       await tx.wait();
-      alert('Milestone submitted!');
-      await loadJobs(contract);
+      showSuccessNotification('Milestone submitted! ✅');
+      await loadJobs(contract, account);
     } catch (error) {
       console.error('Error submitting milestone:', error);
       alert('Failed to submit milestone');
@@ -220,8 +322,9 @@ function App() {
       setLoading(true);
       const tx = await contract.approveMilestone(jobId, milestoneIndex);
       await tx.wait();
-      alert('Milestone approved and payment released!');
-      await loadJobs(contract);
+      showSuccessNotification('Payment released! 💰');
+      await loadJobs(contract, account);
+      await loadStats(contract, account);
     } catch (error) {
       console.error('Error approving milestone:', error);
       alert('Failed to approve milestone');
@@ -230,7 +333,16 @@ function App() {
     }
   };
 
-  // Add milestone to form
+  // Success notification
+  const showSuccessNotification = (message) => {
+    const notification = document.createElement('div');
+    notification.className = 'success-notification';
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 3000);
+  };
+
+  // Add milestone
   const addMilestone = () => {
     setJobForm({
       ...jobForm,
@@ -238,233 +350,452 @@ function App() {
     });
   };
 
-  // Update milestone in form
+  // Update milestone
   const updateMilestone = (index, field, value) => {
     const newMilestones = [...jobForm.milestones];
     newMilestones[index][field] = value;
     setJobForm({ ...jobForm, milestones: newMilestones });
   };
 
-  useEffect(() => {
-    connectWallet();
-  }, []);
+  // Remove milestone
+  const removeMilestone = (index) => {
+    if (jobForm.milestones.length > 1) {
+      const newMilestones = jobForm.milestones.filter((_, i) => i !== index);
+      setJobForm({ ...jobForm, milestones: newMilestones });
+    }
+  };
+
+  // Format address
+  const formatAddress = (addr) => {
+    if (!addr) return '';
+    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  };
 
   return (
-    <div className="app">
-      <header>
-        <h1>🔗 BlockLance - Blockchain Freelance Platform</h1>
-        <div className="wallet-info">
-          {account ? (
-            <>
-              <span>Account: {account.slice(0, 6)}...{account.slice(-4)}</span>
-              <span>Balance: {parseFloat(balance).toFixed(4)} MATIC</span>
-              <span>Reputation: ⭐ {reputation}</span>
-            </>
-          ) : (
-            <button onClick={connectWallet}>Connect Wallet</button>
-          )}
-        </div>
-      </header>
-
-      <nav className="tabs">
-        <button 
-          className={activeTab === 'jobs' ? 'active' : ''} 
-          onClick={() => setActiveTab('jobs')}
-        >
-          Browse Jobs
-        </button>
-        <button 
-          className={activeTab === 'create' ? 'active' : ''} 
-          onClick={() => setActiveTab('create')}
-        >
-          Post Job
-        </button>
-        <button 
-          className={activeTab === 'my-jobs' ? 'active' : ''} 
-          onClick={() => setActiveTab('my-jobs')}
-        >
-          My Jobs
-        </button>
-      </nav>
-
-      {loading && <div className="loading">Loading...</div>}
-
-      <main>
-        {/* Browse Jobs Tab */}
-        {activeTab === 'jobs' && (
-          <div className="jobs-list">
-            <h2>Available Jobs</h2>
-            {jobs.filter(job => job.isActive).map(job => (
-              <div key={job.id} className="job-card">
-                <h3>{job.title}</h3>
-                <p>{job.description}</p>
-                <div className="job-details">
-                  <span>Budget: {job.budget} MATIC</span>
-                  <span>Milestones: {job.milestonesCount}</span>
-                  <span>Client: {job.client.slice(0, 8)}...</span>
-                </div>
-                
-                {job.freelancer === '0x0000000000000000000000000000000000000000' && (
-                  <div className="proposal-section">
-                    <h4>Submit Proposal</h4>
-                    <input
-                      type="hidden"
-                      value={job.id}
-                      onChange={(e) => setProposalForm({...proposalForm, jobId: e.target.value})}
-                    />
-                    <textarea
-                      placeholder="Cover Letter"
-                      value={proposalForm.jobId === job.id.toString() ? proposalForm.coverLetter : ''}
-                      onChange={(e) => setProposalForm({
-                        jobId: job.id.toString(),
-                        coverLetter: e.target.value,
-                        amount: proposalForm.amount
-                      })}
-                    />
-                    <input
-                      type="number"
-                      placeholder="Proposed Amount (MATIC)"
-                      value={proposalForm.jobId === job.id.toString() ? proposalForm.amount : ''}
-                      onChange={(e) => setProposalForm({
-                        jobId: job.id.toString(),
-                        coverLetter: proposalForm.coverLetter,
-                        amount: e.target.value
-                      })}
-                    />
-                    <button onClick={submitProposal}>Submit Proposal</button>
-                  </div>
-                )}
-
-                {/* Show proposals if user is client */}
-                {job.client.toLowerCase() === account?.toLowerCase() && job.proposals.length > 0 && (
-                  <div className="proposals-list">
-                    <h4>Proposals ({job.proposals.length})</h4>
-                    {job.proposals.map((prop, idx) => (
-                      <div key={idx} className="proposal">
-                        <p>Freelancer: {prop.freelancer.slice(0, 8)}...</p>
-                        <p>{prop.coverLetter}</p>
-                        <p>Amount: {ethers.formatEther(prop.proposedAmount)} MATIC</p>
-                        {!prop.isAccepted && job.freelancer === '0x0000000000000000000000000000000000000000' && (
-                          <button onClick={() => acceptProposal(job.id, idx)}>
-                            Accept Proposal
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Show milestones */}
-                {job.freelancer !== '0x0000000000000000000000000000000000000000' && (
-                  <div className="milestones">
-                    <h4>Milestones</h4>
-                    {job.milestones.map((milestone, idx) => (
-                      <div key={idx} className="milestone">
-                        <p>{milestone.description}</p>
-                        <p>Amount: {ethers.formatEther(milestone.amount)} MATIC</p>
-                        <p>Status: {
-                          milestone.isPaid ? '✅ Paid' : 
-                          milestone.isCompleted ? '⏳ Pending Approval' : 
-                          '⚪ Not Started'
-                        }</p>
-                        
-                        {/* Freelancer can submit */}
-                        {job.freelancer.toLowerCase() === account?.toLowerCase() && 
-                         !milestone.isCompleted && (
-                          <button onClick={() => submitMilestone(job.id, idx)}>
-                            Submit Work
-                          </button>
-                        )}
-                        
-                        {/* Client can approve */}
-                        {job.client.toLowerCase() === account?.toLowerCase() && 
-                         milestone.isCompleted && !milestone.isPaid && (
-                          <button onClick={() => approveMilestone(job.id, idx)}>
-                            Approve & Pay
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+    <div className="app-container">
+      <div className="background-animation"></div>
+      <div className="particles" id="particles"></div>
+      
+      <div className="app">
+        <header className="glass-header">
+          <div className="logo">
+            <div className="logo-icon">⛓️</div>
+            <h1>BlockLance</h1>
           </div>
-        )}
+          <div className="wallet-info">
+            {account ? (
+              <>
+                <div className="wallet-stat">
+                  <span className="stat-label">Account</span>
+                  <span className="stat-value">{formatAddress(account)}</span>
+                </div>
+                <div className="wallet-stat">
+                  <span className="stat-label">Balance</span>
+                  <span className="stat-value">{parseFloat(balance).toFixed(4)} ETH</span>
+                </div>
+                <div className="wallet-stat">
+                  <span className="stat-label">Reputation</span>
+                  <span className="stat-value">⭐ {reputation}</span>
+                </div>
+                {/* <button className="connect-btn connected">
+                  Connected to Sepolia
+                </button> */}
+              </>
+            ) : (
+              <button className="connect-btn" onClick={connectWallet}>
+                {loading ? 'Connecting...' : 'Connect Wallet'}
+              </button>
+            )}
+          </div>
+        </header>
 
-        {/* Create Job Tab */}
-        {activeTab === 'create' && (
-          <div className="create-job">
-            <h2>Post New Job</h2>
-            <input
-              type="text"
-              placeholder="Job Title"
-              value={jobForm.title}
-              onChange={(e) => setJobForm({...jobForm, title: e.target.value})}
-            />
-            <textarea
-              placeholder="Job Description"
-              value={jobForm.description}
-              onChange={(e) => setJobForm({...jobForm, description: e.target.value})}
-            />
-            
-            <h3>Milestones</h3>
-            {jobForm.milestones.map((milestone, index) => (
-              <div key={index} className="milestone-form">
-                <input
-                  type="text"
-                  placeholder="Milestone Description"
-                  value={milestone.description}
-                  onChange={(e) => updateMilestone(index, 'description', e.target.value)}
-                />
-                <input
-                  type="number"
-                  placeholder="Amount (MATIC)"
-                  step="0.01"
-                  value={milestone.amount}
-                  onChange={(e) => updateMilestone(index, 'amount', e.target.value)}
-                />
-              </div>
-            ))}
-            <button onClick={addMilestone} type="button">+ Add Milestone</button>
-            <button onClick={createJob} disabled={loading}>
-              {loading ? 'Creating...' : 'Create Job'}
+        <nav className="nav-container">
+          <div className="tabs">
+            <button 
+              className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
+              onClick={() => setActiveTab('dashboard')}
+            >
+              Dashboard
+            </button>
+            <button 
+              className={`tab-btn ${activeTab === 'jobs' ? 'active' : ''}`}
+              onClick={() => setActiveTab('jobs')}
+            >
+              Browse Jobs
+            </button>
+            <button 
+              className={`tab-btn ${activeTab === 'create' ? 'active' : ''}`}
+              onClick={() => setActiveTab('create')}
+            >
+              Post Job
+            </button>
+            <button 
+              className={`tab-btn ${activeTab === 'my-jobs' ? 'active' : ''}`}
+              onClick={() => setActiveTab('my-jobs')}
+            >
+              My Work
             </button>
           </div>
-        )}
+        </nav>
 
-        {/* My Jobs Tab */}
-        {activeTab === 'my-jobs' && (
-          <div className="my-jobs">
-            <h2>My Jobs</h2>
-            <div className="my-jobs-sections">
-              <div>
-                <h3>As Client</h3>
-                {jobs.filter(j => j.client.toLowerCase() === account?.toLowerCase()).map(job => (
-                  <div key={job.id} className="job-card">
-                    <h4>{job.title}</h4>
-                    <p>Status: {job.isActive ? '🟢 Active' : '✅ Completed'}</p>
-                    <p>Freelancer: {job.freelancer !== '0x0000000000000000000000000000000000000000' 
-                      ? job.freelancer.slice(0, 8) + '...' 
-                      : 'Not assigned'}</p>
-                  </div>
-                ))}
-              </div>
+        <main className="main-content">
+          {loading && (
+            <div className="loading-overlay">
+              <div className="loading-spinner"></div>
+            </div>
+          )}
+
+          {/* Dashboard Tab */}
+          {activeTab === 'dashboard' && (
+            <div className="tab-content">
+              <h2 className="section-title">Welcome to BlockLance</h2>
               
-              <div>
-                <h3>As Freelancer</h3>
-                {jobs.filter(j => j.freelancer.toLowerCase() === account?.toLowerCase()).map(job => (
-                  <div key={job.id} className="job-card">
-                    <h4>{job.title}</h4>
-                    <p>Client: {job.client.slice(0, 8)}...</p>
-                    <p>Status: {job.isActive ? '🟢 Active' : '✅ Completed'}</p>
+              <div className="stats-grid">
+                <div className="stat-card">
+                  <div className="stat-number">{stats.activeJobs}</div>
+                  <div className="stat-desc">Active Jobs</div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-number">{stats.totalEarned} ETH</div>
+                  <div className="stat-desc">Total Earned</div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-number">{stats.jobsCompleted}</div>
+                  <div className="stat-desc">Milestones Completed</div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-number">{stats.successRate}%</div>
+                  <div className="stat-desc">Success Rate</div>
+                </div>
+              </div>
+
+              <h3 className="section-subtitle">Recent Jobs</h3>
+              <div className="job-grid">
+                {jobs.slice(0, 4).map(job => (
+                  <div key={job.id} className="job-card modern">
+                    <div className="job-header">
+                      <h3 className="job-title">{job.title}</h3>
+                      <span className="job-budget">{job.budget} ETH</span>
+                    </div>
+                    <p className="job-description">{job.description}</p>
+                    <div className="job-meta">
+                      <span className="meta-tag">
+                        {job.isActive ? '🟢 Active' : '✅ Completed'}
+                      </span>
+                      <span className="meta-tag">
+                        📊 {job.milestonesCount} Milestones
+                      </span>
+                    </div>
+                    <div className="milestone-progress">
+                      <div className="progress-header">
+                        <span>Progress</span>
+                        <span>{job.completedMilestones}/{job.milestonesCount}</span>
+                      </div>
+                      <div className="progress-bar">
+                        <div 
+                          className="progress-fill" 
+                          style={{ width: `${job.progress}%` }}
+                        ></div>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
-          </div>
-        )}
-      </main>
+          )}
+
+          {/* Browse Jobs Tab */}
+          {activeTab === 'jobs' && (
+            <div className="tab-content">
+              <h2 className="section-title">Available Jobs</h2>
+              
+              <div className="job-grid">
+                {jobs.filter(job => job.isActive).map(job => (
+                  <div key={job.id} className="job-card expandable">
+                    <div className="job-header">
+                      <h3 className="job-title">{job.title}</h3>
+                      <span className="job-budget">{job.budget} ETH</span>
+                    </div>
+                    <p className="job-description">{job.description}</p>
+                    
+                    <div className="job-meta">
+                      <span className="meta-tag">👤 {formatAddress(job.client)}</span>
+                      <span className="meta-tag">📊 {job.milestonesCount} Blocks</span>
+                      <span className="meta-tag">📝 {job.proposals.length} Proposals</span>
+                    </div>
+
+                    {/* Milestones Preview */}
+                    <div className="milestones-preview">
+                      <h4>Project Blocks:</h4>
+                      {job.milestones.map((milestone, idx) => (
+                        <div key={idx} className="milestone-item">
+                          <span className="milestone-number">Block {idx + 1}</span>
+                          <span className="milestone-desc">{milestone.description}</span>
+                          <span className="milestone-amount">
+                            {ethers.formatEther(milestone.amount)} ETH
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {job.freelancer === '0x0000000000000000000000000000000000000000' && 
+                     job.client.toLowerCase() !== account?.toLowerCase() && (
+                      <button 
+                        className="action-btn primary"
+                        onClick={() => submitProposal(job.id)}
+                      >
+                        Submit Proposal
+                      </button>
+                    )}
+
+                    {/* Show proposals if user is client */}
+                    {job.client.toLowerCase() === account?.toLowerCase() && 
+                     job.proposals.length > 0 && (
+                      <div className="proposals-section">
+                        <h4>Proposals:</h4>
+                        {job.proposals.map((prop, idx) => (
+                          <div key={idx} className="proposal-card">
+                            <p className="proposal-freelancer">
+                              {formatAddress(prop.freelancer)}
+                            </p>
+                            <p className="proposal-letter">{prop.coverLetter}</p>
+                            <p className="proposal-amount">
+                              {ethers.formatEther(prop.proposedAmount)} ETH
+                            </p>
+                            {!prop.isAccepted && job.freelancer === '0x0000000000000000000000000000000000000000' && (
+                              <button 
+                                className="action-btn success"
+                                onClick={() => acceptProposal(job.id, idx)}
+                              >
+                                Accept
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Active work section */}
+                    {job.freelancer !== '0x0000000000000000000000000000000000000000' && (
+                      <div className="active-work">
+                        <h4>Active Work Progress:</h4>
+                        {job.milestones.map((milestone, idx) => (
+                          <div key={idx} className="milestone-status">
+                            <span>Block {idx + 1}: {milestone.description}</span>
+                            <div className="milestone-actions">
+                              {milestone.isPaid && <span className="status-badge paid">✅ Paid</span>}
+                              {milestone.isCompleted && !milestone.isPaid && 
+                                <span className="status-badge pending">⏳ Pending</span>}
+                              {!milestone.isCompleted && <span className="status-badge">⚪ Not Started</span>}
+                              
+                              {job.freelancer.toLowerCase() === account?.toLowerCase() && 
+                               !milestone.isCompleted && (idx === 0 || job.milestones[idx-1].isPaid) && (
+                                <button 
+                                  className="action-btn"
+                                  onClick={() => submitMilestone(job.id, idx)}
+                                >
+                                  Submit Work
+                                </button>
+                              )}
+                              
+                              {job.client.toLowerCase() === account?.toLowerCase() && 
+                               milestone.isCompleted && !milestone.isPaid && (
+                                <button 
+                                  className="action-btn success"
+                                  onClick={() => approveMilestone(job.id, idx)}
+                                >
+                                  Approve & Pay
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Create Job Tab */}
+          {activeTab === 'create' && (
+            <div className="tab-content create-job-content">
+              <h2 className="section-title">Post a New Job</h2>
+              
+              <div className="form-container">
+                <div className="form-group">
+                  <label>Job Title</label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Smart Contract Developer Needed"
+                    value={jobForm.title}
+                    onChange={(e) => setJobForm({...jobForm, title: e.target.value})}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Description</label>
+                  <textarea
+                    placeholder="Describe the job requirements, skills needed, and project details..."
+                    value={jobForm.description}
+                    onChange={(e) => setJobForm({...jobForm, description: e.target.value})}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Category</label>
+                  <select
+                    value={jobForm.category}
+                    onChange={(e) => setJobForm({...jobForm, category: e.target.value})}
+                  >
+                    <option>Smart Contract Development</option>
+                    <option>Frontend Development</option>
+                    <option>Backend Development</option>
+                    <option>UI/UX Design</option>
+                    <option>Audit & Security</option>
+                    <option>Content Writing</option>
+                  </select>
+                </div>
+                
+                <div className="form-group">
+                  <label>Project Milestones (Blocks)</label>
+                  <div className="milestones-builder">
+                    {jobForm.milestones.map((milestone, index) => (
+                      <div key={index} className="milestone-form-item">
+                        <div className="milestone-number-badge">Block {index + 1}</div>
+                        <input
+                          type="text"
+                          placeholder="Milestone description"
+                          value={milestone.description}
+                          onChange={(e) => updateMilestone(index, 'description', e.target.value)}
+                        />
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="Amount (ETH)"
+                          value={milestone.amount}
+                          onChange={(e) => updateMilestone(index, 'amount', e.target.value)}
+                        />
+                        {jobForm.milestones.length > 1 && (
+                          <button 
+                            className="remove-btn"
+                            onClick={() => removeMilestone(index)}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    
+                    <button className="add-milestone-btn" onClick={addMilestone}>
+                      + Add Another Milestone
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="form-summary">
+                  <div className="summary-item">
+                    <span>Total Budget:</span>
+                    <span className="summary-value">
+                      {jobForm.milestones.reduce((sum, m) => sum + parseFloat(m.amount || 0), 0).toFixed(3)} ETH
+                    </span>
+                  </div>
+                  <div className="summary-item">
+                    <span>Number of Blocks:</span>
+                    <span className="summary-value">{jobForm.milestones.length}</span>
+                  </div>
+                </div>
+                
+                <button 
+                  className="submit-btn"
+                  onClick={createJob}
+                  disabled={loading || !account}
+                >
+                  {loading ? 'Creating...' : 'Create Job & Fund Escrow'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* My Jobs Tab */}
+          {activeTab === 'my-jobs' && (
+            <div className="tab-content">
+              <h2 className="section-title">My Work</h2>
+              
+              <div className="my-jobs-grid">
+                <div className="jobs-section">
+                  <h3 className="section-subtitle">As Client</h3>
+                  <div className="job-list">
+                    {jobs.filter(j => j.client.toLowerCase() === account?.toLowerCase()).map(job => (
+                      <div key={job.id} className="my-job-card">
+                        <h4>{job.title}</h4>
+                        <div className="job-info">
+                          <span className={`status-pill ${job.isActive ? 'active' : 'completed'}`}>
+                            {job.isActive ? 'Active' : 'Completed'}
+                          </span>
+                          <span className="info-text">
+                            Freelancer: {job.freelancer !== '0x0000000000000000000000000000000000000000' 
+                              ? formatAddress(job.freelancer) 
+                              : 'Not assigned'}
+                          </span>
+                          <span className="info-text">
+                            Progress: {job.completedMilestones}/{job.milestonesCount}
+                          </span>
+                        </div>
+                        <div className="progress-bar">
+                          <div 
+                            className="progress-fill" 
+                            style={{ width: `${job.progress}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="jobs-section">
+                  <h3 className="section-subtitle">As Freelancer</h3>
+                  <div className="job-list">
+                    {jobs.filter(j => j.freelancer.toLowerCase() === account?.toLowerCase()).map(job => (
+                      <div key={job.id} className="my-job-card">
+                        <h4>{job.title}</h4>
+                        <div className="job-info">
+                          <span className={`status-pill ${job.isActive ? 'active' : 'completed'}`}>
+                            {job.isActive ? 'In Progress' : 'Completed'}
+                          </span>
+                          <span className="info-text">
+                            Client: {formatAddress(job.client)}
+                          </span>
+                          <span className="info-text">
+                            Earnings: {
+                              job.milestones
+                                .filter(m => m.isPaid)
+                                .reduce((sum, m) => sum + parseFloat(ethers.formatEther(m.amount)), 0)
+                                .toFixed(3)
+                            } ETH
+                          </span>
+                        </div>
+                        <div className="progress-bar">
+                          <div 
+                            className="progress-fill" 
+                            style={{ width: `${job.progress}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
+
+      {/* Floating Action Button */}
+      <div className="fab" onClick={() => setActiveTab('create')}>
+        <span>+</span>
+      </div>
     </div>
   );
 }
