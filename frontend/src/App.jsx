@@ -3,7 +3,6 @@ import { ethers } from "ethers";
 import "./App.css";
 import LandingPage from "./LandingPage";
 import MagnetLines from "./components/MagnetLines";
-import TargetCursor from "./components/TargetCursor";
 import contractData from "./contracts/FreelanceMarketplace.json";
 
 const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS || contractData.address;
@@ -43,7 +42,13 @@ function App() {
   const [contract, setContract] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("browse");
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [stats, setStats] = useState({
+    activeJobs: 0,
+    totalEarned: '0',
+    jobsCompleted: 0,
+    successRate: 0
+  });
   const [balance, setBalance] = useState("0");
   const [isSubmitDialogOpen, setIsSubmitDialogOpen] = useState(false);
   const [selectedMilestone, setSelectedMilestone] = useState(null);
@@ -72,6 +77,7 @@ function App() {
 
         setAccount(accounts[0]);
         setContract(contractInstance);
+        localStorage.setItem('walletConnected', accounts[0]);
 
         const balance = await provider.getBalance(accounts[0]);
         setBalance(ethers.formatEther(balance));
@@ -94,6 +100,7 @@ function App() {
       for (let i = 1; i <= jobCounter; i++) {
         const job = await contract.jobs(i);
         const milestones = await contract.getJobMilestones(i);
+        const proposals = await contract.getJobProposals(i);
         const completedMilestones = milestones.filter((m) => m.isPaid).length;
 
         jobsList.push({
@@ -106,15 +113,47 @@ function App() {
           freelancer: job.freelancer,
           milestonesCount: job.milestonesCount.toString(),
           milestones: milestones,
+          proposals: proposals,
           completedMilestones: completedMilestones,
           progress: (completedMilestones / milestones.length) * 100,
         });
       }
       setJobs(jobsList);
+      await loadStats();
     } catch (error) {
       console.error("Error loading jobs:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadStats = async () => {
+    if (!contract || !account) return;
+    try {
+      const clientJobs = await contract.getClientJobs(account);
+      const freelancerJobs = await contract.getFreelancerJobs(account);
+      
+      let totalEarned = 0n;
+      let completed = 0;
+      
+      for (const jobId of freelancerJobs) {
+        const milestones = await contract.getJobMilestones(jobId);
+        for (const milestone of milestones) {
+          if (milestone.isPaid) {
+            totalEarned += milestone.amount;
+            completed++;
+          }
+        }
+      }
+      
+      setStats({
+        activeJobs: clientJobs.length + freelancerJobs.length,
+        totalEarned: ethers.formatEther(totalEarned),
+        jobsCompleted: completed,
+        successRate: freelancerJobs.length > 0 ? Math.round((completed / freelancerJobs.length) * 100) : 0
+      });
+    } catch (error) {
+      console.error('Error loading stats:', error);
     }
   };
 
@@ -158,9 +197,93 @@ function App() {
     }
   };
 
-  const handleMilestoneSubmit = async (milestoneIndex, deliverable) => {
-    // Implementation for milestone submission
-    console.log("Milestone submitted:", milestoneIndex, deliverable);
+  const submitProposal = async (jobId) => {
+    try {
+      if (!contract) {
+        alert('Please connect wallet first');
+        return;
+      }
+      
+      const coverLetter = prompt('Enter your cover letter:');
+      const amount = prompt('Enter your proposed amount (ETH):');
+      
+      if (!coverLetter || !amount) return;
+      
+      setLoading(true);
+      
+      const tx = await contract.submitProposal(
+        jobId,
+        coverLetter,
+        ethers.parseEther(amount)
+      );
+      
+      await tx.wait();
+      alert('Proposal submitted! 🚀');
+      await loadJobs();
+      
+    } catch (error) {
+      console.error('Error submitting proposal:', error);
+      alert('Failed to submit proposal');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const acceptProposal = async (jobId, proposalIndex) => {
+    try {
+      setLoading(true);
+      const tx = await contract.acceptProposal(jobId, proposalIndex);
+      await tx.wait();
+      alert('Proposal accepted! 🤝');
+      await loadJobs();
+    } catch (error) {
+      console.error('Error accepting proposal:', error);
+      alert('Failed to accept proposal');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submitMilestone = (jobId, milestoneIndex) => {
+    setSelectedMilestone({ jobId, milestoneIndex });
+    setIsSubmitDialogOpen(true);
+  };
+
+  const handleMilestoneSubmit = async (ipfsHash) => {
+    try {
+      setLoading(true);
+      setIsSubmitDialogOpen(false);
+      
+      const tx = await contract.submitMilestone(
+        selectedMilestone.jobId,
+        selectedMilestone.milestoneIndex,
+        ipfsHash
+      );
+      await tx.wait();
+      
+      alert('Milestone submitted! ✅');
+      await loadJobs();
+    } catch (error) {
+      console.error('Error submitting milestone:', error);
+      alert('Failed to submit milestone');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const approveMilestone = async (jobId, milestoneIndex) => {
+    try {
+      setLoading(true);
+      const tx = await contract.approveMilestone(jobId, milestoneIndex);
+      await tx.wait();
+      alert('Payment released! 💰');
+      await loadJobs();
+    } catch (error) {
+      console.error('Error approving milestone:', error);
+      alert('Failed to approve milestone');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const addMilestone = () => {
@@ -194,13 +317,37 @@ function App() {
     }
   }, [contract]);
 
+  useEffect(() => {
+    const savedAccount = localStorage.getItem('walletConnected');
+    if (savedAccount && window.ethereum) {
+      const reconnect = async () => {
+        try {
+          const provider = new ethers.BrowserProvider(window.ethereum);
+          const signer = await provider.getSigner();
+          const contractInstance = new ethers.Contract(
+            CONTRACT_ADDRESS,
+            CONTRACT_ABI,
+            signer
+          );
+          setAccount(savedAccount);
+          setContract(contractInstance);
+          const balance = await provider.getBalance(savedAccount);
+          setBalance(ethers.formatEther(balance));
+          setShowLanding(false);
+        } catch (error) {
+          localStorage.removeItem('walletConnected');
+        }
+      };
+      reconnect();
+    }
+  }, []);
+
   if (showLanding || !account) {
     return <LandingPage onConnect={connectWallet} account={account} />;
   }
 
   return (
     <>
-      <TargetCursor spinDuration={2} hideDefaultCursor={true} />
       <MagnetLines 
         rows={20}
         columns={20}
@@ -234,7 +381,10 @@ function App() {
             <div className="stat-label">Address</div>
             <div className="stat-value">{formatAddress(account)}</div>
           </div>
-          <button className="disconnect-btn cursor-target" onClick={() => setShowLanding(true)}>
+          <button className="disconnect-btn" onClick={() => {
+            localStorage.removeItem('walletConnected');
+            setShowLanding(true);
+          }}>
             Disconnect
           </button>
         </div>
@@ -243,7 +393,16 @@ function App() {
       <div className="nav-container">
         <nav className="tabs">
           <button
-            className={`tab-btn cursor-target ${activeTab === "browse" ? "active" : ""}`}
+            className={`tab-btn ${activeTab === "dashboard" ? "active" : ""}`}
+            onClick={() => setActiveTab("dashboard")}
+          >
+            <svg className="tab-icon" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
+            </svg>
+            Dashboard
+          </button>
+          <button
+            className={`tab-btn ${activeTab === "browse" ? "active" : ""}`}
             onClick={() => setActiveTab("browse")}
           >
             <svg className="tab-icon" viewBox="0 0 24 24" fill="currentColor">
@@ -252,7 +411,7 @@ function App() {
             Browse Jobs
           </button>
           <button
-            className={`tab-btn cursor-target ${activeTab === "create" ? "active" : ""}`}
+            className={`tab-btn ${activeTab === "create" ? "active" : ""}`}
             onClick={() => setActiveTab("create")}
           >
             <svg className="tab-icon" viewBox="0 0 24 24" fill="currentColor">
@@ -261,7 +420,7 @@ function App() {
             Create Job
           </button>
           <button
-            className={`tab-btn cursor-target ${activeTab === "my-jobs" ? "active" : ""}`}
+            className={`tab-btn ${activeTab === "my-jobs" ? "active" : ""}`}
             onClick={() => setActiveTab("my-jobs")}
           >
             <svg className="tab-icon" viewBox="0 0 24 24" fill="currentColor">
@@ -276,6 +435,58 @@ function App() {
         {loading && (
           <div className="loading-overlay">
             <div className="loading-spinner"></div>
+          </div>
+        )}
+
+        {activeTab === "dashboard" && (
+          <div className="tab-content">
+            <h2 className="section-title">Dashboard</h2>
+            
+            <div className="stats-grid">
+              <div className="stat-card">
+                <div className="stat-number">{stats.activeJobs}</div>
+                <div className="stat-desc">Active Jobs</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-number">{parseFloat(stats.totalEarned).toFixed(3)} ETH</div>
+                <div className="stat-desc">Total Earned</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-number">{stats.jobsCompleted}</div>
+                <div className="stat-desc">Milestones Completed</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-number">{stats.successRate}%</div>
+                <div className="stat-desc">Success Rate</div>
+              </div>
+            </div>
+
+            <h3 className="section-subtitle">Recent Jobs</h3>
+            <div className="job-grid">
+              {jobs.slice(0, 4).map(job => (
+                <div key={job.id} className="job-card">
+                  <div className="job-header">
+                    <h3 className="job-title">{job.title}</h3>
+                    <span className="job-budget">{job.budget} ETH</span>
+                  </div>
+                  <p className="job-description">{job.description}</p>
+                  <div className="job-meta">
+                    <span className="meta-tag">
+                      {job.isActive ? '🟢 Active' : '✅ Completed'}
+                    </span>
+                    <span className="meta-tag">
+                      📊 {job.milestonesCount} Milestones
+                    </span>
+                  </div>
+                  <div className="progress-bar">
+                    <div
+                      className="progress-fill"
+                      style={{ width: `${job.progress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -420,7 +631,7 @@ function App() {
               </div>
 
               <button
-                className="submit-btn cursor-target"
+                className="submit-btn"
                 onClick={createJob}
                 disabled={loading || !account}
               >

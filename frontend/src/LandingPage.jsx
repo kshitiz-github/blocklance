@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import ScrambledText from "./components/ScrambledText";
 import MagnetLines from "./components/MagnetLines";
-import TargetCursor from "./components/TargetCursor";
 import BlurText from "./components/BlurText";
 import "./LandingPage.css";
 
@@ -15,9 +14,7 @@ const LandingPage = ({ onConnect, account }) => {
   };
 
   return (
-    <>
-      <TargetCursor spinDuration={2} hideDefaultCursor={true} />
-      <div className="landing-container">
+    <div className="landing-container">
       <MagnetLines
         rows={20}
         columns={20}
@@ -78,26 +75,12 @@ const LandingPage = ({ onConnect, account }) => {
             </ScrambledText>
           </div>
 
-          {/* Chain Animation */}
-          <div className="chain-container">
-            <div className="chain-links">
-              {[...Array(8)].map((_, i) => (
-                <div key={i} className="chain-link">
-                  <div className="link-ring">
-                    <div className="link-inner"></div>
-                    <div className="link-highlight"></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* Connect Wallet Section */}
           <div className="connect-section">
             {!account ? (
               <>
                 <button
-                  className={`connect-wallet-btn cursor-target ${
+                  className={`connect-wallet-btn ${
                     isConnecting ? "connecting" : ""
                   }`}
                   onClick={handleConnect}
@@ -158,7 +141,6 @@ const LandingPage = ({ onConnect, account }) => {
         </div>
       </main>
     </div>
-    </>
   );
 };
 

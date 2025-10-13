@@ -26,12 +26,25 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', 'Roboto', sans-serif;
+  font-family: nimbus-sans, sans-serif;
   background: linear-gradient(135deg, var(--off-white) 0%, #f1f3f4 100%);
   color: var(--royal-blue-dark);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  cursor: default !important;
+}
+
+* {
+  cursor: default !important;
+}
+
+button {
+  cursor: pointer !important;
+}
+
+input, textarea, select {
+  cursor: text !important;
 }
 
 /* Main App Container */
@@ -133,7 +146,7 @@ body {
 .disconnect-btn {
   background: var(--light-grey);
   color: var(--royal-blue);
-  border: 1px solid var(--royal-blue-light);
+  border: 2px solid var(--royal-blue-light);
   padding: 0.75rem 1.5rem;
   border-radius: var(--border-radius);
   cursor: pointer;
@@ -169,7 +182,7 @@ body {
   gap: 0.5rem;
   background: none;
   color: var(--medium-grey);
-  border: none;
+  border: 2px solid transparent;
   padding: 1rem 1.5rem;
   cursor: pointer;
   font-size: 0.9rem;
@@ -470,7 +483,7 @@ textarea {
   width: 100%;
   padding: 1.25rem;
   background: linear-gradient(135deg, var(--royal-blue), var(--royal-blue-dark));
-  border: none;
+  border: 2px solid transparent;
   border-radius: var(--border-radius);
   color: white;
   font-weight: 600;
@@ -482,9 +495,9 @@ textarea {
   box-shadow: 0 4px 20px var(--shadow-medium);
 }
 
-button.cursor-target:hover,
-.tab-btn.cursor-target:hover,
-.disconnect-btn.cursor-target:hover {
+button:hover:not(:disabled),
+.tab-btn:hover:not(.active),
+.disconnect-btn:hover {
   border: 2px dashed var(--gold-accent) !important;
   border-radius: 0 !important;
 }
@@ -500,6 +513,48 @@ button.cursor-target:hover,
   opacity: 0.6;
   transform: none;
   box-shadow: none;
+}
+
+/* Stats Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 3rem;
+}
+
+.stat-card {
+  background: var(--primary-white);
+  padding: 2rem;
+  border-radius: var(--border-radius-large);
+  text-align: center;
+  box-shadow: 0 4px 20px var(--shadow-light);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  transition: var(--transition);
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 30px var(--shadow-medium);
+}
+
+.stat-number {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--royal-blue-dark);
+  margin-bottom: 0.5rem;
+  background: linear-gradient(135deg, var(--royal-blue), var(--gold-accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.stat-desc {
+  font-size: 0.9rem;
+  color: var(--medium-grey);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 /* My Jobs */
