@@ -959,12 +959,29 @@ function App() {
                               
                               {job.client.toLowerCase() === account?.toLowerCase() && 
                                milestone.isCompleted && !milestone.isPaid && (
-                                <button 
-                                  className="action-btn success"
-                                  onClick={() => approveMilestone(job.id, idx)}
-                                >
-                                  Approve & Pay
-                                </button>
+                                <>
+                                  {milestone.deliverableHash && (
+                                    <div className="deliverable-section">
+                                      <div className="deliverable-info">
+                                        <span className="deliverable-label">📦 Submitted Work:</span>
+                                        <a 
+                                          href={`https://gateway.pinata.cloud/ipfs/${milestone.deliverableHash.replace('ipfs://', '')}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="deliverable-link"
+                                        >
+                                          View/Download Work ↗
+                                        </a>
+                                      </div>
+                                    </div>
+                                  )}
+                                  <button 
+                                    className="action-btn success"
+                                    onClick={() => approveMilestone(job.id, idx)}
+                                  >
+                                    Approve & Pay
+                                  </button>
+                                </>
                               )}
                             </div>
                           </div>
@@ -1163,8 +1180,61 @@ function App() {
       <div className="fab" onClick={() => setActiveTab('create')}>
         <span>+</span>
       </div>
+
+      {/* Add CSS for deliverable section */}
+      <style>{`
+        .deliverable-section {
+          margin: 0.75rem 0;
+          padding: 1rem;
+          background: rgba(59, 130, 246, 0.1);
+          border: 1px solid rgba(59, 130, 246, 0.3);
+          border-radius: 8px;
+          width: 100%;
+        }
+
+        .deliverable-info {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+
+        .deliverable-label {
+          font-size: 0.875rem;
+          font-weight: 600;
+          color: #93c5fd;
+        }
+
+        .deliverable-link {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.5rem 1rem;
+          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+          color: white;
+          text-decoration: none;
+          border-radius: 6px;
+          font-size: 0.875rem;
+          font-weight: 500;
+          transition: all 0.3s ease;
+          align-self: flex-start;
+        }
+
+        .deliverable-link:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .milestone-actions {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+          align-items: flex-start;
+          width: 100%;
+        }
+      `}</style>
     </div>
   );
 }
 
 export default App;
+              
