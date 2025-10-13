@@ -397,9 +397,7 @@ function App() {
                   <span className="stat-label">Reputation</span>
                   <span className="stat-value">⭐ {reputation}</span>
                 </div>
-                {/* <button className="connect-btn connected">
-                  Connected to Sepolia
-                </button> */}
+
               </>
             ) : (
               <button className="connect-btn" onClick={connectWallet}>
