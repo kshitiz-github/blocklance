@@ -708,6 +708,10 @@ function App() {
         
         const completedMilestones = milestones.filter(m => m.isPaid).length;
         
+        // Load preview links from localStorage
+        const previewLinksKey = `previewLinks_${i}`;
+        const previewLinks = JSON.parse(localStorage.getItem(previewLinksKey) || '{}');
+        
         jobsList.push({
           id: i,
           client: job.client,
@@ -720,7 +724,8 @@ function App() {
           milestones: milestones,
           proposals: proposals,
           completedMilestones: completedMilestones,
-          progress: (completedMilestones / milestones.length) * 100
+          progress: (completedMilestones / milestones.length) * 100,
+          previewLinks: previewLinks
         });
       }
       
@@ -855,6 +860,23 @@ function App() {
     try {
       setLoading(true);
       setIsSubmitDialogOpen(false);
+      
+      // Store preview link in local state for display (since contract only stores IPFS hash)
+      const jobIndex = jobs.findIndex(j => j.id === selectedJob);
+      if (jobIndex !== -1 && previewLink) {
+        const updatedJobs = [...jobs];
+        if (!updatedJobs[jobIndex].previewLinks) {
+          updatedJobs[jobIndex].previewLinks = {};
+        }
+        updatedJobs[jobIndex].previewLinks[selectedMilestone] = previewLink;
+        setJobs(updatedJobs);
+        
+        // Store in localStorage for persistence
+        const previewLinksKey = `previewLinks_${selectedJob}`;
+        const existingLinks = JSON.parse(localStorage.getItem(previewLinksKey) || '{}');
+        existingLinks[selectedMilestone] = previewLink;
+        localStorage.setItem(previewLinksKey, JSON.stringify(existingLinks));
+      }
       
       const tx = await contract.submitMilestone(
         selectedJob,
@@ -1155,21 +1177,31 @@ function App() {
                               {job.client.toLowerCase() === account?.toLowerCase() && 
                                milestone.isCompleted && !milestone.isPaid && (
                                 <>
-                                  {milestone.deliverableHash && (
-                                    <div className="deliverable-section">
-                                      <div className="deliverable-info">
-                                        <span className="deliverable-label">📦 Submitted Work:</span>
+                                  <div className="deliverable-section">
+                                    <div className="deliverable-info">
+                                      <span className="deliverable-label">📦 Submitted Work:</span>
+                                      {milestone.deliverableHash && (
                                         <a 
                                           href={`https://gateway.pinata.cloud/ipfs/${milestone.deliverableHash.replace('ipfs://', '')}`}
                                           target="_blank"
                                           rel="noopener noreferrer"
                                           className="deliverable-link"
                                         >
-                                          View/Download Work ↗
+                                          📥 Download Files (ZIP)
                                         </a>
-                                      </div>
+                                      )}
+                                      {job.previewLinks && job.previewLinks[idx] && (
+                                        <a 
+                                          href={job.previewLinks[idx]}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="deliverable-link preview-link"
+                                        >
+                                          🔗 View Live Preview
+                                        </a>
+                                      )}
                                     </div>
-                                  )}
+                                  </div>
                                   <button 
                                     className="action-btn success"
                                     onClick={() => approveMilestone(job.id, idx)}
@@ -1421,27 +1453,28 @@ function App() {
           padding: 1rem;
           background: rgba(59, 130, 246, 0.1);
           border: 1px solid rgba(59, 130, 246, 0.3);
-          borderRadius: 8px;
+          border-radius: 8px;
           width: 100%;
         }
 
         .deliverable-info {
           display: flex;
           flex-direction: column;
-          gap: 0.5rem;
+          gap: 0.75rem;
         }
 
         .deliverable-label {
           font-size: 0.875rem;
           font-weight: 600;
           color: #93c5fd;
+          margin-bottom: 0.25rem;
         }
 
         .deliverable-link {
           display: inline-flex;
           align-items: center;
           gap: 0.5rem;
-          padding: 0.5rem 1rem;
+          padding: 0.625rem 1rem;
           background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
           color: white;
           text-decoration: none;
@@ -1455,6 +1488,14 @@ function App() {
         .deliverable-link:hover {
           transform: translateY(-2px);
           box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .deliverable-link.preview-link {
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        .deliverable-link.preview-link:hover {
+          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
         }
 
         .milestone-actions {
