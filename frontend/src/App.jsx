@@ -5,7 +5,7 @@ import './App.css';
 // Import contract ABI (adjust path as needed)
 import contractData from './contracts/FreelanceMarketplace.json';
 
-import logo from './assets/logo.png';
+import logo from './assets/BlockLance-Logo.jpg';
 
 const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS || contractData.address;
 const CONTRACT_ABI = contractData.abi;
