@@ -5,6 +5,8 @@ import './App.css';
 // Import contract ABI (adjust path as needed)
 import contractData from './contracts/FreelanceMarketplace.json';
 
+import logo from './assets/logo.png';
+
 const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS || contractData.address;
 const CONTRACT_ABI = contractData.abi;
 
@@ -958,8 +960,7 @@ function App() {
       <div className="app">
         <header className="glass-header">
           <div className="logo">
-            <div className="logo-icon">⛓️</div>
-            <h1>BlockLance</h1>
+            <div className="logo-icon"><img id='logo-size' src={logo}/></div>
           </div>
           <div className="wallet-info">
             {account ? (
