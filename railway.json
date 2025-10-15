@@ -1,8 +1,0 @@
-{
-  "build": {
-    "root": "backend",
-    "builder": "node",
-    "buildCommand": "npm install",
-    "startCommand": "npm start"
-  }
-}
