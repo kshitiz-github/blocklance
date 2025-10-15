@@ -1,4 +1,3 @@
-// frontend/src/App.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
 import './App.css';
@@ -6,11 +5,201 @@ import './App.css';
 // Import contract ABI (adjust path as needed)
 import contractData from './contracts/FreelanceMarketplace.json';
 
+import logo from './assets/logo.png';
+
 const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS || contractData.address;
 const CONTRACT_ABI = contractData.abi;
 
+// Generic Dialog Component
+const Dialog = ({ isOpen, onClose, title, children, type = 'info' }) => {
+  if (!isOpen) return null;
+
+  const icons = {
+    info: 'ℹ️',
+    success: '✅',
+    error: '❌',
+    warning: '⚠️'
+  };
+
+  return (
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000,
+      padding: '1rem'
+    }}>
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))',
+        backdropFilter: 'blur(10px)',
+        borderRadius: '12px',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+        maxWidth: '450px',
+        width: '100%',
+        border: '1px solid rgba(255, 255, 255, 0.1)'
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '1.5rem',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span style={{ fontSize: '1.5rem' }}>{icons[type]}</span>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#fff', margin: 0 }}>
+              {title}
+            </h2>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#999',
+              fontSize: '1.5rem',
+              cursor: 'pointer',
+              padding: '0.25rem'
+            }}
+          >
+            ✕
+          </button>
+        </div>
+        <div style={{ padding: '1.5rem' }}>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Proposal Dialog Component
+const ProposalDialog = ({ isOpen, onClose, onSubmit }) => {
+  const [coverLetter, setCoverLetter] = useState('');
+  const [amount, setAmount] = useState('');
+
+  const handleSubmit = () => {
+    if (!coverLetter.trim() || !amount.trim()) {
+      return;
+    }
+    onSubmit(coverLetter, amount);
+    setCoverLetter('');
+    setAmount('');
+  };
+
+  const handleClose = () => {
+    setCoverLetter('');
+    setAmount('');
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <Dialog isOpen={isOpen} onClose={handleClose} title="Submit Proposal" type="info">
+      <div style={{ marginBottom: '1rem' }}>
+        <label style={{
+          display: 'block',
+          fontSize: '0.875rem',
+          fontWeight: '500',
+          color: '#fff',
+          marginBottom: '0.5rem'
+        }}>
+          Cover Letter
+        </label>
+        <textarea
+          value={coverLetter}
+          onChange={(e) => setCoverLetter(e.target.value)}
+          placeholder="Explain why you're the best fit for this project..."
+          style={{
+            width: '100%',
+            padding: '0.75rem',
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '8px',
+            color: '#fff',
+            fontSize: '0.875rem',
+            outline: 'none',
+            minHeight: '100px',
+            resize: 'vertical'
+          }}
+          autoFocus
+        />
+      </div>
+      <div style={{ marginBottom: '1.5rem' }}>
+        <label style={{
+          display: 'block',
+          fontSize: '0.875rem',
+          fontWeight: '500',
+          color: '#fff',
+          marginBottom: '0.5rem'
+        }}>
+          Proposed Amount (ETH)
+        </label>
+        <input
+          type="number"
+          step="0.01"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          placeholder="0.00"
+          style={{
+            width: '100%',
+            padding: '0.75rem',
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '8px',
+            color: '#fff',
+            fontSize: '0.875rem',
+            outline: 'none'
+          }}
+        />
+      </div>
+      <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <button
+          onClick={handleClose}
+          style={{
+            flex: 1,
+            padding: '0.75rem',
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '8px',
+            color: '#fff',
+            fontSize: '0.875rem',
+            fontWeight: '500',
+            cursor: 'pointer'
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSubmit}
+          disabled={!coverLetter.trim() || !amount.trim()}
+          style={{
+            flex: 1,
+            padding: '0.75rem',
+            background: (coverLetter.trim() && amount.trim())
+              ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+              : 'rgba(255, 255, 255, 0.1)',
+            border: 'none',
+            borderRadius: '8px',
+            color: '#fff',
+            fontSize: '0.875rem',
+            fontWeight: '500',
+            cursor: (coverLetter.trim() && amount.trim()) ? 'pointer' : 'not-allowed'
+          }}
+        >
+          Submit Proposal
+        </button>
+      </div>
+    </Dialog>
+  );
+};
+
 // Milestone Submit Dialog Component
-const MilestoneSubmitDialog = ({ isOpen, onClose, onSubmit, milestoneIndex }) => {
+const MilestoneSubmitDialog = ({ isOpen, onClose, onSubmit, milestoneIndex, showAlert }) => {
   const [previewLink, setPreviewLink] = useState('');
   const [file, setFile] = useState(null);
   const [ipfsHash, setIpfsHash] = useState('');
@@ -24,7 +213,7 @@ const MilestoneSubmitDialog = ({ isOpen, onClose, onSubmit, milestoneIndex }) =>
           selectedFile.name.endsWith('.zip')) {
         setFile(selectedFile);
       } else {
-        alert('Please upload a ZIP file only');
+        showAlert('Invalid File Type', 'Please upload a ZIP file only', 'warning');
         e.target.value = '';
       }
     }
@@ -32,7 +221,7 @@ const MilestoneSubmitDialog = ({ isOpen, onClose, onSubmit, milestoneIndex }) =>
 
   const uploadToIPFS = async () => {
     if (!file) {
-      alert('Please select a file first');
+      showAlert('No File Selected', 'Please select a file first', 'warning');
       return;
     }
 
@@ -60,10 +249,10 @@ const MilestoneSubmitDialog = ({ isOpen, onClose, onSubmit, milestoneIndex }) =>
       const hash = `ipfs://${data.IpfsHash}`;
       setIpfsHash(hash);
       
-      alert('File uploaded to IPFS successfully! ✅');
+      showAlert('Upload Successful', 'File uploaded to IPFS successfully! ✅', 'success');
     } catch (error) {
       console.error('IPFS upload error:', error);
-      alert('Failed to upload to IPFS. Please try again.');
+      showAlert('Upload Failed', 'Failed to upload to IPFS. Please try again.', 'error');
     } finally {
       setUploading(false);
     }
@@ -71,7 +260,7 @@ const MilestoneSubmitDialog = ({ isOpen, onClose, onSubmit, milestoneIndex }) =>
 
   const handleSubmit = () => {
     if (!ipfsHash.trim()) {
-      alert('Please upload your work to IPFS first');
+      showAlert('Upload Required', 'Please upload your work to IPFS first', 'warning');
       return;
     }
     
@@ -385,6 +574,8 @@ function App() {
   const [isSubmitDialogOpen, setIsSubmitDialogOpen] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
   const [selectedMilestone, setSelectedMilestone] = useState(null);
+  const [alertDialog, setAlertDialog] = useState({ isOpen: false, title: '', message: '', type: 'info' });
+  const [proposalDialog, setProposalDialog] = useState({ isOpen: false, jobId: null });
   
   // Form states
   const [jobForm, setJobForm] = useState({
@@ -399,6 +590,11 @@ function App() {
     coverLetter: '',
     amount: ''
   });
+
+  // Show alert dialog helper
+  const showAlert = (title, message, type = 'info') => {
+    setAlertDialog({ isOpen: true, title, message, type });
+  };
 
   // Initialize particles on mount
   useEffect(() => {
@@ -431,7 +627,7 @@ function App() {
   const connectWallet = async () => {
     try {
       if (!window.ethereum) {
-        alert('Please install MetaMask to use this platform!');
+        showAlert('MetaMask Required', 'Please install MetaMask to use this platform!', 'warning');
         return;
       }
       
@@ -443,7 +639,7 @@ function App() {
       
       const network = await provider.getNetwork();
       if (network.chainId !== 11155111n) {
-        alert('Please switch to Sepolia testnet in MetaMask!');
+        showAlert('Wrong Network', 'Please switch to Sepolia testnet in MetaMask!', 'warning');
         return;
       }
       
@@ -464,7 +660,7 @@ function App() {
       
     } catch (error) {
       console.error('Connection error:', error);
-      alert('Failed to connect: ' + error.message);
+      showAlert('Connection Failed', 'Failed to connect: ' + error.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -514,6 +710,10 @@ function App() {
         
         const completedMilestones = milestones.filter(m => m.isPaid).length;
         
+        // Load preview links from localStorage
+        const previewLinksKey = `previewLinks_${i}`;
+        const previewLinks = JSON.parse(localStorage.getItem(previewLinksKey) || '{}');
+        
         jobsList.push({
           id: i,
           client: job.client,
@@ -526,7 +726,8 @@ function App() {
           milestones: milestones,
           proposals: proposals,
           completedMilestones: completedMilestones,
-          progress: (completedMilestones / milestones.length) * 100
+          progress: (completedMilestones / milestones.length) * 100,
+          previewLinks: previewLinks
         });
       }
       
@@ -551,12 +752,12 @@ function App() {
   const createJob = async () => {
     try {
       if (!contract) {
-        alert('Please connect wallet first');
+        showAlert('Wallet Not Connected', 'Please connect wallet first', 'warning');
         return;
       }
       
       if (!jobForm.title || !jobForm.description) {
-        alert('Please fill in all required fields');
+        showAlert('Missing Information', 'Please fill in all required fields', 'warning');
         return;
       }
       
@@ -593,7 +794,7 @@ function App() {
       
     } catch (error) {
       console.error('Error creating job:', error);
-      alert('Failed to create job: ' + error.message);
+      showAlert('Job Creation Failed', 'Failed to create job: ' + error.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -601,21 +802,22 @@ function App() {
 
   // Submit proposal
   const submitProposal = async (jobId) => {
+    if (!contract) {
+      showAlert('Wallet Not Connected', 'Please connect wallet first', 'warning');
+      return;
+    }
+    
+    setProposalDialog({ isOpen: true, jobId });
+  };
+
+  // Handle proposal submission
+  const handleProposalSubmit = async (coverLetter, amount) => {
     try {
-      if (!contract) {
-        alert('Please connect wallet first');
-        return;
-      }
-      
-      const coverLetter = prompt('Enter your cover letter:');
-      const amount = prompt('Enter your proposed amount (ETH):');
-      
-      if (!coverLetter || !amount) return;
-      
+      setProposalDialog({ isOpen: false, jobId: null });
       setLoading(true);
       
       const tx = await contract.submitProposal(
-        jobId,
+        proposalDialog.jobId,
         coverLetter,
         ethers.parseEther(amount)
       );
@@ -626,7 +828,7 @@ function App() {
       
     } catch (error) {
       console.error('Error submitting proposal:', error);
-      alert('Failed to submit proposal');
+      showAlert('Proposal Failed', 'Failed to submit proposal: ' + error.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -642,7 +844,7 @@ function App() {
       await loadJobs(contract, account);
     } catch (error) {
       console.error('Error accepting proposal:', error);
-      alert('Failed to accept proposal');
+      showAlert('Acceptance Failed', 'Failed to accept proposal: ' + error.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -661,6 +863,23 @@ function App() {
       setLoading(true);
       setIsSubmitDialogOpen(false);
       
+      // Store preview link in local state for display (since contract only stores IPFS hash)
+      const jobIndex = jobs.findIndex(j => j.id === selectedJob);
+      if (jobIndex !== -1 && previewLink) {
+        const updatedJobs = [...jobs];
+        if (!updatedJobs[jobIndex].previewLinks) {
+          updatedJobs[jobIndex].previewLinks = {};
+        }
+        updatedJobs[jobIndex].previewLinks[selectedMilestone] = previewLink;
+        setJobs(updatedJobs);
+        
+        // Store in localStorage for persistence
+        const previewLinksKey = `previewLinks_${selectedJob}`;
+        const existingLinks = JSON.parse(localStorage.getItem(previewLinksKey) || '{}');
+        existingLinks[selectedMilestone] = previewLink;
+        localStorage.setItem(previewLinksKey, JSON.stringify(existingLinks));
+      }
+      
       const tx = await contract.submitMilestone(
         selectedJob,
         selectedMilestone,
@@ -672,7 +891,7 @@ function App() {
       await loadJobs(contract, account);
     } catch (error) {
       console.error('Error submitting milestone:', error);
-      alert('Failed to submit milestone');
+      showAlert('Submission Failed', 'Failed to submit milestone: ' + error.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -689,7 +908,7 @@ function App() {
       await loadStats(contract, account);
     } catch (error) {
       console.error('Error approving milestone:', error);
-      alert('Failed to approve milestone');
+      showAlert('Approval Failed', 'Failed to approve milestone: ' + error.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -741,8 +960,7 @@ function App() {
       <div className="app">
         <header className="glass-header">
           <div className="logo">
-            <div className="logo-icon">⛓️</div>
-            <h1>BlockLance</h1>
+            <div className="logo-icon"><img id='logo-size' src={logo}/></div>
           </div>
           <div className="wallet-info">
             {account ? (
@@ -960,21 +1178,31 @@ function App() {
                               {job.client.toLowerCase() === account?.toLowerCase() && 
                                milestone.isCompleted && !milestone.isPaid && (
                                 <>
-                                  {milestone.deliverableHash && (
-                                    <div className="deliverable-section">
-                                      <div className="deliverable-info">
-                                        <span className="deliverable-label">📦 Submitted Work:</span>
+                                  <div className="deliverable-section">
+                                    <div className="deliverable-info">
+                                      <span className="deliverable-label">📦 Submitted Work:</span>
+                                      {milestone.deliverableHash && (
                                         <a 
                                           href={`https://gateway.pinata.cloud/ipfs/${milestone.deliverableHash.replace('ipfs://', '')}`}
                                           target="_blank"
                                           rel="noopener noreferrer"
                                           className="deliverable-link"
                                         >
-                                          View/Download Work ↗
+                                          📥 Download Files (ZIP)
                                         </a>
-                                      </div>
+                                      )}
+                                      {job.previewLinks && job.previewLinks[idx] && (
+                                        <a 
+                                          href={job.previewLinks[idx]}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="deliverable-link preview-link"
+                                        >
+                                          🔗 View Live Preview
+                                        </a>
+                                      )}
                                     </div>
-                                  )}
+                                  </div>
                                   <button 
                                     className="action-btn success"
                                     onClick={() => approveMilestone(job.id, idx)}
@@ -1168,12 +1396,50 @@ function App() {
         </main>
       </div>
 
+      {/* Alert Dialog */}
+      <Dialog
+        isOpen={alertDialog.isOpen}
+        onClose={() => setAlertDialog({ ...alertDialog, isOpen: false })}
+        title={alertDialog.title}
+        type={alertDialog.type}
+      >
+        <p style={{ color: '#ccc', fontSize: '0.875rem', lineHeight: '1.5', margin: 0 }}>
+          {alertDialog.message}
+        </p>
+        <div style={{ marginTop: '1.5rem' }}>
+          <button
+            onClick={() => setAlertDialog({ ...alertDialog, isOpen: false })}
+            style={{
+              width: '100%',
+              padding: '0.75rem',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              border: 'none',
+              borderRadius: '8px',
+              color: '#fff',
+              fontSize: '0.875rem',
+              fontWeight: '500',
+              cursor: 'pointer'
+            }}
+          >
+            OK
+          </button>
+        </div>
+      </Dialog>
+
+      {/* Proposal Dialog */}
+      <ProposalDialog
+        isOpen={proposalDialog.isOpen}
+        onClose={() => setProposalDialog({ isOpen: false, jobId: null })}
+        onSubmit={handleProposalSubmit}
+      />
+
       {/* Milestone Submit Dialog */}
       <MilestoneSubmitDialog
         isOpen={isSubmitDialogOpen}
         onClose={() => setIsSubmitDialogOpen(false)}
         onSubmit={handleMilestoneSubmit}
         milestoneIndex={selectedMilestone || 0}
+        showAlert={showAlert}
       />
 
       {/* Floating Action Button */}
@@ -1195,20 +1461,21 @@ function App() {
         .deliverable-info {
           display: flex;
           flex-direction: column;
-          gap: 0.5rem;
+          gap: 0.75rem;
         }
 
         .deliverable-label {
           font-size: 0.875rem;
           font-weight: 600;
           color: #93c5fd;
+          margin-bottom: 0.25rem;
         }
 
         .deliverable-link {
           display: inline-flex;
           align-items: center;
           gap: 0.5rem;
-          padding: 0.5rem 1rem;
+          padding: 0.625rem 1rem;
           background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
           color: white;
           text-decoration: none;
@@ -1224,6 +1491,14 @@ function App() {
           box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
         }
 
+        .deliverable-link.preview-link {
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        .deliverable-link.preview-link:hover {
+          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        }
+
         .milestone-actions {
           display: flex;
           flex-direction: column;
@@ -1237,4 +1512,3 @@ function App() {
 }
 
 export default App;
-              
